@@ -9,9 +9,9 @@ on:
 
 env:
   # TODO: troque pelo seu slug, o começo do seu e-mail com ponto virando hífen.
-  SLUG: SEU-SLUG
+  SLUG: maxsuel-lima
   # TODO: a primeira porta da sua faixa. Veja em `gr-docker ajuda`.
-  PORTA: 230N0
+  PORTA: 23230
 
 jobs:
   deploy:
@@ -28,24 +28,50 @@ jobs:
 
       - name: Derrubar a topologia antiga
         run: |
-          # TODO: apague os três containers, se existirem.
-          # Dica: o passo não pode falhar quando eles ainda não existem.
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker rm -f front api banco || true"
 
       - name: Criar rede e volume
         run: |
-          # TODO: as duas redes e o volume. A rede do banco é interna.
-          # Dica: criar o que já existe devolve erro. Trate isso.
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker network create dados --internal || true"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker network create web || true"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker volume create pgdata || true"
 
       - name: Subir banco, API e front
         run: |
-          # TODO: os três containers, na ordem certa.
-          # O front precisa receber o commit que o deploy publicou:
-          #   -e DEPLOY_SHA=${{ github.sha }}
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker run postgres:17-alpine \
+            --name banco \
+            --network dados \
+            -e POSTGRES_PASSWORD='${{ secrets.DB_SENHA }}' \
+            -e POSTGRES_DB=pokedex \
+            -v pgdata:/var/lib/postgresql/data"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker run gr-atv2-api:1 \
+            --name api \
+            --network dados \
+            -e POSTGRES_HOST=gr-maxsuel-lima-banco \
+            -e POSTGRES_DB=pokedex \
+            -e POSTGRES_PASSWORD='${{ secrets.DB_SENHA }}'"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker network connect web api"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker run gr-atv2-front:1 \
+            --name front \
+            --network web \
+            -e API=gr-maxsuel-lima-api \
+            -e DEPLOY_SHA=${{ github.sha }} \
+            -p ${{ env.PORTA }}:80"
 
       - name: Conferir que subiu
         run: |
-          # TODO: pergunte ao servidor se a listagem responde.
-          echo "TODO"
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "curl -fsS http://localhost:${{ env.PORTA }}"
