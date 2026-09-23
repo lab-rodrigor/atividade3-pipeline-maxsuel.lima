@@ -29,7 +29,13 @@ jobs:
       - name: Derrubar a topologia antiga
         run: |
           ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
-            "gr-docker rm front api banco"
+            "gr-docker rm front || true"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker rm api || true"
+
+          ssh -i ~/.ssh/deploy gr-maxsuel-lima@gr.lab.ayty.org \
+            "gr-docker rm banco || true"
 
       - name: Criar rede e volume
         run: |
